@@ -30,6 +30,7 @@ module top_tb;
     wire counting_tp;
     wire [15:0] tp;
     wire iterator;
+    wire [15:0] freq;
     
     top dut( .x(x),
             .clk(clk),
@@ -40,7 +41,8 @@ module top_tb;
             .pos_edge(pos_edge),
             .neg_edge(neg_edge),
             .tp(tp),
-            .iterator(iterator)
+            .iterator(iterator),
+            .freq(freq)
     );
 
     initial begin

@@ -102,6 +102,23 @@ module time_period( input x,
     end
 endmodule
 
+module frequency(
+    input clk,
+    input [15:0] tp,
+    output reg [15:0] freq
+);
+    parameter clock_freq = 100;//100MHz clock frequency
+
+    always @(posedge clk) begin
+        if (tp > 0) begin
+            freq <= clock_freq / tp;
+        end else begin
+            freq <= 0;
+        end
+    end
+    
+endmodule
+
 module top( input x, 
             input clk, 
             input reset, 
@@ -113,7 +130,8 @@ module top( input x,
             output wire pos_edge, 
             output wire neg_edge, 
             output wire iterator,
-            output wire [15:0] tp
+            output wire [15:0] tp,
+            output wire [15:0] freq
             );
 
     // wire pos_edge, neg_edge;
@@ -146,4 +164,10 @@ module top( input x,
         .counter_tp(counter_tp),
         .iterator(iterator)
     ); 
+
+    frequency frequency_inst(
+        .clk(clk),
+        .tp(tp),
+        .freq(freq)
+    );
 endmodule
