@@ -18,7 +18,12 @@
 // Additional Comments:
 // 
 //////////////////////////////////////////////////////////////////////////////////
-module edge_detector(input x, input clk, input reset, output reg pos_edge, output reg neg_edge);
+module edge_detector(   input x, 
+                        input clk, 
+                        input reset, 
+                        output reg pos_edge, 
+                        output reg neg_edge
+                        );
     reg x_prev;
     always @(posedge clk) begin
         if (reset) begin
@@ -33,8 +38,14 @@ module edge_detector(input x, input clk, input reset, output reg pos_edge, outpu
     end
 endmodule
 
-module time_calc(input pos_edge, input neg_edge, input clk, input reset, output reg [15:0] counter, output reg [15:0] pulse_width, output reg counting); //considering max freq of 50MHz, and 65535 clock cycles
-    // reg counting;
+module time_calc(   input pos_edge, 
+                    input neg_edge, 
+                    input clk, 
+                    input reset, 
+                    output reg [15:0] counter, 
+                    output reg [15:0] pulse_width
+                    ); //considering max freq of 50MHz, and 65535 clock cycles
+    reg counting;
     always @(posedge clk) begin
         if (reset) begin
             counter <= 0;
@@ -57,7 +68,54 @@ module time_calc(input pos_edge, input neg_edge, input clk, input reset, output 
     end
 endmodule
 
-module top(input x, input clk, input reset, output wire [15:0] pulse_width, output wire [15:0] counter, output pos_edge, output neg_edge, output counting);
+module time_period( input x,
+                    input clk, 
+                    input reset, 
+                    input pos_edge, 
+                    input neg_edge, 
+                    output reg [15:0] tp, 
+                    output reg counting_tp, 
+                    output reg [15:0] counter_tp, 
+                    output reg iterator
+                    );
+    always @(posedge clk) begin
+        if (reset) begin
+            tp <= 0;
+            counting_tp <= 0;
+            iterator <= 1;
+        end else begin
+            if (pos_edge) begin
+                if (iterator) begin    
+                    counting_tp <= 1;
+                    iterator <= ~iterator;
+                    counter_tp <= 1;
+                end else begin
+                    tp <= counter_tp; // if it is the second pos_edge of input then store period value
+                    iterator <= ~iterator;
+                    counting_tp <= 0;
+                end
+            end
+            if (counting_tp) begin
+                counter_tp <= counter_tp + 1;
+            end
+        end
+    end
+endmodule
+
+module top( input x, 
+            input clk, 
+            input reset, 
+            output wire [15:0] pulse_width, 
+            // output wire [15:0] counter, 
+            output wire [15:0] counter_tp,
+            // output wire counting, 
+            output wire counting_tp, 
+            output wire pos_edge, 
+            output wire neg_edge, 
+            output wire iterator,
+            output wire [15:0] tp
+            );
+
     // wire pos_edge, neg_edge;
     // wire [15:0] counter;
     edge_detector edge_detector_inst(
@@ -74,8 +132,18 @@ module top(input x, input clk, input reset, output wire [15:0] pulse_width, outp
         .pos_edge(pos_edge),
         .neg_edge(neg_edge),
         .counter(counter),
-        .pulse_width(pulse_width),
-        .counting(counting)
+        .pulse_width(pulse_width)
+        // .counting(counting)
     );
-    
+
+    time_period time_period_inst(
+        .x(x),
+        .clk(clk),
+        .reset(reset),
+        .pos_edge(pos_edge),
+        .tp(tp),
+        .counting_tp(counting_tp),
+        .counter_tp(counter_tp),
+        .iterator(iterator)
+    ); 
 endmodule

@@ -24,19 +24,23 @@ module top_tb;
     reg reset;
     reg x;
     wire [15:0] pulse_width;
-    wire [15:0] counter;
+    wire [15:0] counter_tp;
     wire pos_edge;
     wire neg_edge;
-    wire counting;
+    wire counting_tp;
+    wire [15:0] tp;
+    wire iterator;
     
     top dut( .x(x),
             .clk(clk),
             .reset(reset),
             .pulse_width(pulse_width),
-            .counting(counting),
-            .counter(counter),
+            .counting_tp(counting_tp),
+            .counter_tp(counter_tp),
             .pos_edge(pos_edge),
-            .neg_edge(neg_edge)
+            .neg_edge(neg_edge),
+            .tp(tp),
+            .iterator(iterator)
     );
 
     initial begin
@@ -45,22 +49,19 @@ module top_tb;
     end
 
     initial begin
-        reset=1;
-        x=0;
-        #15;
-        reset=0;
-
-        #3 x=1;
-        #30 x=0;
-        #12 x=1;
-        #10 x=0;
-        #6 x=1;
-        #4 x=0;
-        #10 x=1;
-        #90 x=0;
-
-        #20 $finish;
+        reset = 1;
+        x = 0;
+        #20;
+        reset = 0;
+        // Uniform square wave (100 ns period: 40 ns HIGH, 60 ns LOW)
+        forever begin
+            x = 1;
+            #60;
+            x = 0;
+            #60;
+        end
     end
+
     initial begin
         $monitor("T=%0t | x=%b | pos_edge=%b | neg_edge=%b | pulse_width=%d", $time, x, dut.pos_edge, dut.neg_edge, pulse_width);
     end
