@@ -68,35 +68,34 @@ module time_calc(   input pos_edge,
     end
 endmodule
 
-module time_period( input x,
-                    input clk, 
+// tp gives number of clock cycles between two rising edges
+// time period in seconds = tp * 10 ns (10 ns is the time period of each clock)
+module time_period( input clk, 
                     input reset, 
                     input pos_edge, 
-                    input neg_edge, 
                     output reg [15:0] tp, 
-                    output reg counting_tp, 
-                    output reg [15:0] counter_tp, 
-                    output reg iterator
+                    output reg [15:0] counter_tp,
+                    output reg tp_valid 
                     );
+    reg first_edge_passed;
     always @(posedge clk) begin
         if (reset) begin
             tp <= 0;
-            counting_tp <= 0;
-            iterator <= 1;
+            counter_tp <= 1;
+            first_edge_passed <= 0;
         end else begin
-            if (pos_edge) begin
-                if (iterator) begin    
-                    counting_tp <= 1;
-                    iterator <= ~iterator;
-                    counter_tp <= 1;
-                end else begin
-                    tp <= counter_tp; // if it is the second pos_edge of input then store period value
-                    iterator <= ~iterator;
-                    counting_tp <= 0;
-                end
+            tp_valid <= 0;
+            counter_tp <= counter_tp + 1;
+            if (first_edge_passed == 0) begin
+                counter_tp <= 1;
             end
-            if (counting_tp) begin
-                counter_tp <= counter_tp + 1;
+            if (pos_edge) begin
+                if (first_edge_passed) begin
+                    tp_valid <= 1;
+                end
+                first_edge_passed <= 1;
+                tp <= counter_tp;
+                counter_tp <= 1;
             end
         end
     end
@@ -104,38 +103,61 @@ endmodule
 
 module frequency(
     input clk,
+    input reset,
     input [15:0] tp,
+    input tp_valid,
     output reg [15:0] freq
 );
     parameter clock_freq = 100;//100MHz clock frequency
 
     always @(posedge clk) begin
-        if (tp > 0) begin
-            freq <= clock_freq / tp;
-        end else begin
+        if (reset) begin
             freq <= 0;
+        end else if (tp_valid) begin            
+            if (tp > 0) begin
+                freq <= clock_freq / tp;
+            end else begin
+                freq <= 0;
+            end
         end
     end
-    
+endmodule
+
+module duty_cycle (
+    input clk,
+    input reset,
+    input [15:0] tp,
+    input [15:0] pulse_width,
+    input tp_valid,
+    output reg [15:0] duty_cycle
+);
+    always @(posedge clk) begin
+        if (reset) begin
+            duty_cycle <= 0;
+        end else if (tp_valid) begin            
+            if (tp != 0) begin
+                duty_cycle <= 100 * pulse_width/tp;
+            end
+            else begin
+                duty_cycle <= 0;
+            end
+        end
+    end
 endmodule
 
 module top( input x, 
             input clk, 
             input reset, 
             output wire [15:0] pulse_width, 
-            // output wire [15:0] counter, 
             output wire [15:0] counter_tp,
-            // output wire counting, 
-            output wire counting_tp, 
+            output wire tp_valid,
             output wire pos_edge, 
             output wire neg_edge, 
-            output wire iterator,
             output wire [15:0] tp,
-            output wire [15:0] freq
+            output wire [15:0] freq,
+            output wire [15:0] duty_cycle
             );
 
-    // wire pos_edge, neg_edge;
-    // wire [15:0] counter;
     edge_detector edge_detector_inst(
         .x(x),
         .clk(clk),
@@ -151,23 +173,31 @@ module top( input x,
         .neg_edge(neg_edge),
         .counter(counter),
         .pulse_width(pulse_width)
-        // .counting(counting)
     );
 
     time_period time_period_inst(
-        .x(x),
         .clk(clk),
         .reset(reset),
         .pos_edge(pos_edge),
         .tp(tp),
-        .counting_tp(counting_tp),
-        .counter_tp(counter_tp),
-        .iterator(iterator)
+        .tp_valid(tp_valid),
+        .counter_tp(counter_tp)
     ); 
 
     frequency frequency_inst(
         .clk(clk),
+        .reset(reset),
         .tp(tp),
+        .tp_valid(tp_valid),
         .freq(freq)
+    );
+
+    duty_cycle duty_cycle_inst(
+        .clk(clk),
+        .reset(reset),
+        .tp(tp),
+        .tp_valid(tp_valid),
+        .pulse_width(pulse_width),
+        .duty_cycle(duty_cycle)
     );
 endmodule
